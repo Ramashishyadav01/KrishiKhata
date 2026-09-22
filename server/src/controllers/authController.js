@@ -223,3 +223,58 @@ exports.deleteUser = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.resetPassword = async (req, res, next) => {
+  try {
+    const { mobile, newPassword, confirmPassword } = req.body;
+
+    const cleanMobile = mobile ? mobile.toString().trim() : '';
+    if (!cleanMobile || !/^[6-9]\d{9}$/.test(cleanMobile)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid mobile number. Please enter a valid 10-digit Indian mobile number.',
+      });
+    }
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 6 characters long.',
+      });
+    }
+
+    if (confirmPassword !== undefined && newPassword !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Passwords do not match.',
+      });
+    }
+
+    const user = await User.findOne({ mobile: cleanMobile });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'No user account found with this mobile number.',
+      });
+    }
+
+    if (user.status === 'inactive') {
+      return res.status(403).json({
+        success: false,
+        message: 'Account is inactive. Please contact admin to reset password.',
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Password reset successfully! You can now log in with your new password.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

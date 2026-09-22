@@ -20,7 +20,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('krishikhata_token');
-      localStorage.removeItem('khetkhata_token');
+      localStorage.removeItem('krishikhata_token');
       localStorage.removeItem('token');
       localStorage.removeItem('authToken');
       localStorage.removeItem('accessToken');

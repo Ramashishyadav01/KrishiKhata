@@ -41,6 +41,11 @@ export const AuthProvider = ({ children }) => {
     return res.data;
   };
 
+  const resetPassword = async (mobile, newPassword, confirmPassword) => {
+    const res = await api.post('/auth/reset-password', { mobile, newPassword, confirmPassword });
+    return res.data;
+  };
+
   const logout = () => {
     localStorage.removeItem('krishikhata_token');
     localStorage.removeItem('khetkhata_token');
@@ -57,7 +62,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, resetPassword, logout }}>
       {children}
     </AuthContext.Provider>
   );
