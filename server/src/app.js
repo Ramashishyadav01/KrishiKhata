@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -29,6 +30,16 @@ app.use('/api/reports', require('./routes/reportRoutes'));
 app.get('/api/health', (req, res) => {
   res.json({ success: true, status: 'OK', app: 'KrishiKhata Agriculture Management Backend' });
 });
+
+// Serve frontend static files in single-server production deployment
+if (process.env.NODE_ENV === 'production' || process.env.SERVE_STATIC === 'true') {
+  const clientDistPath = path.join(__dirname, '../../client/dist');
+  app.use(express.static(clientDistPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+}
 
 // Centralized error handler
 app.use(errorHandler);
