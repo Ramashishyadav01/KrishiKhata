@@ -12,8 +12,21 @@ exports.getSeasons = async (req, res, next) => {
 exports.createSeason = async (req, res, next) => {
   try {
     const { name, startDate, endDate, status, notes } = req.body;
-    const season = await Season.create({ name, startDate, endDate, status, notes });
-    res.status(201).json({ success: true, season });
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'Season name is required (सीजन का नाम आवश्यक है)' });
+    }
+
+    const sDate = startDate ? new Date(startDate) : new Date();
+    const eDate = endDate ? new Date(endDate) : new Date(Date.now() + 180 * 24 * 60 * 60 * 1000);
+
+    const season = await Season.create({
+      name: name.trim(),
+      startDate: sDate,
+      endDate: eDate,
+      status: status || 'Active',
+      notes: notes ? notes.trim() : undefined,
+    });
+    res.status(201).json({ success: true, message: 'Season created successfully', season });
   } catch (error) {
     next(error);
   }

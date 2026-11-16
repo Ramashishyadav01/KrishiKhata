@@ -9,32 +9,71 @@ const Seasons = () => {
   const { seasons, fetchSeasons } = useSeason();
   const [showModal, setShowModal] = useState(false);
 
+  const getToday = () => new Date().toISOString().slice(0, 10);
+  const getSixMonthsLater = () => new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
   const [formData, setFormData] = useState({
     name: '',
-    startDate: new Date().toISOString().slice(0, 10),
-    endDate: new Date().toISOString().slice(0, 10),
+    startDate: getToday(),
+    endDate: getSixMonthsLater(),
     status: 'Active',
     notes: '',
   });
 
+  const handleOpenModal = () => {
+    setFormData({
+      name: '',
+      startDate: getToday(),
+      endDate: getSixMonthsLater(),
+      status: 'Active',
+      notes: '',
+    });
+    setShowModal(true);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.name || !formData.name.trim()) {
+      alert('Please enter a season name (कृपया सीज़न का नाम दर्ज करें)');
+      return;
+    }
+
     try {
       const res = await api.post('/seasons', formData);
       if (res.data.success) {
         setShowModal(false);
-        setFormData({ name: '', startDate: new Date().toISOString().slice(0, 10), endDate: new Date().toISOString().slice(0, 10), status: 'Active', notes: '' });
+        setFormData({
+          name: '',
+          startDate: getToday(),
+          endDate: getSixMonthsLater(),
+          status: 'Active',
+          notes: '',
+        });
         fetchSeasons();
       }
     } catch (error) {
-      alert('Failed to create season');
+      console.error('Failed to create season:', error);
+      const message =
+        error.response?.data?.message ||
+        error.message ||
+        'Failed to create season';
+      alert(`Failed to create season: ${message}`);
     }
   };
 
   const handleToggleStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === 'Active' ? 'Completed' : 'Active';
-    await api.put(`/seasons/${id}`, { status: newStatus });
-    fetchSeasons();
+    try {
+      await api.put(`/seasons/${id}`, { status: newStatus });
+      fetchSeasons();
+    } catch (error) {
+      console.error('Failed to update season status:', error);
+      const message =
+        error.response?.data?.message ||
+        error.message ||
+        'Failed to update season';
+      alert(`Failed to update season: ${message}`);
+    }
   };
 
   return (
@@ -45,11 +84,11 @@ const Seasons = () => {
             {t('seasons')} (फसल सीजन)
           </h1>
           <p className="text-xs text-gray-500 font-hindi mt-0.5">
-            Agricultural season cycles (e.g. Kharif 2026, Rabi 2026-27) to isolate seasonal P&L
+            Agricultural season cycles (e.g. Kharif 2026, Rabi 2026-27, Gehu) to isolate seasonal P&L
           </p>
         </div>
         <button
-          onClick={() => setShowModal(true)}
+          onClick={handleOpenModal}
           className="bg-agri-700 hover:bg-agri-800 text-white font-hindi text-xs font-bold py-2.5 px-4 rounded-xl shadow-md transition flex items-center justify-center space-x-2"
         >
           <Plus size={18} />
@@ -88,7 +127,7 @@ const Seasons = () => {
 
             <button
               onClick={() => handleToggleStatus(s._id, s.status)}
-              className="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs rounded-xl transition"
+              className="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs rounded-xl transition font-hindi"
             >
               Mark as {s.status === 'Active' ? 'Completed' : 'Active'}
             </button>
@@ -99,23 +138,23 @@ const Seasons = () => {
       {showModal && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100">
-            <h2 className="text-lg font-bold text-gray-900 font-hindi mb-4">+ Add Season</h2>
-            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+            <h2 className="text-lg font-bold text-gray-900 font-hindi mb-4">+ Add Season (नया सीजन)</h2>
+            <form onSubmit={handleSubmit} className="space-y-4 text-xs font-hindi">
               <div>
-                <label className="block font-bold text-gray-700 mb-1">Season Name *</label>
+                <label className="block font-bold text-gray-700 mb-1">Season Name (सीजन का नाम) *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Kharif 2026"
+                  placeholder="e.g. Kharif 2026, Gehu 2026-27"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-xl font-medium"
+                  className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-xl font-medium focus:outline-none focus:border-agri-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-gray-700 mb-1">Start Date *</label>
+                  <label className="block font-bold text-gray-700 mb-1">Start Date (शुरुआत) *</label>
                   <input
                     type="date"
                     required
@@ -125,7 +164,7 @@ const Seasons = () => {
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-gray-700 mb-1">End Date *</label>
+                  <label className="block font-bold text-gray-700 mb-1">End Date (समाप्ति) *</label>
                   <input
                     type="date"
                     required
@@ -142,10 +181,10 @@ const Seasons = () => {
                   onClick={() => setShowModal(false)}
                   className="px-4 py-2.5 border border-gray-300 rounded-xl font-bold text-gray-600 hover:bg-gray-50"
                 >
-                  Cancel
+                  Cancel (रद्द करें)
                 </button>
-                <button type="submit" className="px-6 py-2.5 bg-agri-700 hover:bg-agri-800 text-white font-bold rounded-xl">
-                  Save Season
+                <button type="submit" className="px-6 py-2.5 bg-agri-700 hover:bg-agri-800 text-white font-bold rounded-xl shadow-md">
+                  Save Season (सीजन सहेजें)
                 </button>
               </div>
             </form>

@@ -1,6 +1,7 @@
 const FuelEntry = require('../models/FuelEntry');
 const Expense = require('../models/Expense');
 const Season = require('../models/Season');
+const { resolveOrCreateSeason } = require('../utils/seasonHelper');
 const mongoose = require('mongoose');
 
 exports.getFuelEntries = async (req, res, next) => {
@@ -56,13 +57,7 @@ exports.createFuelEntry = async (req, res, next) => {
     const totalAmount = Math.round(qty * rate);
 
     // Resolve season if not provided or empty string
-    if (!season || !mongoose.Types.ObjectId.isValid(season)) {
-      const activeSeason = await Season.findOne({ status: 'Active' }) || await Season.findOne().sort({ startDate: -1 });
-      if (!activeSeason) {
-        return res.status(400).json({ success: false, message: 'No active crop season found. Please create a season first.' });
-      }
-      season = activeSeason._id;
-    }
+    season = await resolveOrCreateSeason(season);
 
     const fuelEntry = await FuelEntry.create({
       date: date || new Date(),

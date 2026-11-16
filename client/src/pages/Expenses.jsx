@@ -26,7 +26,6 @@ const Expenses = () => {
   const categories = [
     'Diesel',
     'Petrol',
-    'Electricity',
     'Repair',
     'Spare Parts',
     'Labour',
@@ -60,7 +59,7 @@ const Expenses = () => {
     try {
       const res = await api.post('/expenses', {
         ...formData,
-        season: selectedSeason || null,
+        season: selectedSeason || undefined,
       });
       if (res.data.success) {
         setShowModal(false);
@@ -76,7 +75,8 @@ const Expenses = () => {
         fetchData();
       }
     } catch (error) {
-      alert('Failed to log expense');
+      console.error('Failed to log expense:', error);
+      alert(error.response?.data?.message || 'Failed to log expense');
     }
   };
 
@@ -176,7 +176,7 @@ const Expenses = () => {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Rice Mill electricity bill"
+                  placeholder="e.g. Grease, oil filter, spare parts, snacks"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-xl font-medium"
@@ -188,7 +188,7 @@ const Expenses = () => {
                 <input
                   type="number"
                   required
-                  placeholder="e.g. 4500"
+                  placeholder="e.g. 1500"
                   value={formData.amount}
                   onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                   className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-xl font-bold font-mono text-rose-700"
@@ -199,7 +199,7 @@ const Expenses = () => {
                 <label className="block font-bold text-gray-700 mb-1">Vendor / Payee</label>
                 <input
                   type="text"
-                  placeholder="e.g. UPPCL State Board"
+                  placeholder="e.g. Sharma Workshop, Kisan Store, Local Shop"
                   value={formData.vendor}
                   onChange={(e) => setFormData({ ...formData, vendor: e.target.value })}
                   className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-xl font-medium"

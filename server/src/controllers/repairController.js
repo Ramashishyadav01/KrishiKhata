@@ -1,5 +1,8 @@
 const Repair = require('../models/Repair');
 const Expense = require('../models/Expense');
+const Season = require('../models/Season');
+const { resolveOrCreateSeason } = require('../utils/seasonHelper');
+const mongoose = require('mongoose');
 
 exports.getRepairs = async (req, res, next) => {
   try {
@@ -34,7 +37,9 @@ exports.getRepairs = async (req, res, next) => {
 
 exports.createRepair = async (req, res, next) => {
   try {
-    const { machine, date, season, problem, description, partsCost, labourCost, mechanic, status, notes } = req.body;
+    let { machine, date, season, problem, description, partsCost, labourCost, mechanic, status, notes } = req.body;
+
+    season = await resolveOrCreateSeason(season);
 
     const parts = parseFloat(partsCost) || 0;
     const labour = parseFloat(labourCost) || 0;

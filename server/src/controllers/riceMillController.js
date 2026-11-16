@@ -1,12 +1,24 @@
 const RiceMillEntry = require('../models/RiceMillEntry');
 const BranSale = require('../models/BranSale');
+const Season = require('../models/Season');
+const Customer = require('../models/Customer');
+const { resolveOrCreateSeason } = require('../utils/seasonHelper');
+const mongoose = require('mongoose');
 
 exports.getRiceMillEntries = async (req, res, next) => {
   try {
     const { season, customer } = req.query;
     let query = {};
-    if (season) query.season = season;
-    if (customer) query.customer = customer;
+    if (season && season !== 'undefined' && season !== 'null' && season !== '') {
+      if (mongoose.Types.ObjectId.isValid(season)) {
+        query.season = season;
+      }
+    }
+    if (customer && customer !== 'undefined' && customer !== 'null' && customer !== '') {
+      if (mongoose.Types.ObjectId.isValid(customer)) {
+        query.customer = customer;
+      }
+    }
 
     const entries = await RiceMillEntry.find(query)
       .populate('customer', 'name mobile village')
@@ -17,7 +29,7 @@ exports.getRiceMillEntries = async (req, res, next) => {
     const totalProcessed = entries.reduce((sum, e) => sum + (e.riceProcessedQuintal || 0), 0);
     const totalBranProduced = entries.reduce((sum, e) => sum + (e.branProducedQuintal || 0), 0);
 
-    const branSalesQuery = season ? { season } : {};
+    const branSalesQuery = query.season ? { season: query.season } : {};
     const branSales = await BranSale.find(branSalesQuery);
     const totalBranSold = branSales.reduce((sum, s) => sum + (s.quantityQuintal || 0), 0);
     const remainingBran = Math.max(0, totalBranProduced - totalBranSold);
@@ -40,7 +52,7 @@ exports.getRiceMillEntries = async (req, res, next) => {
 
 exports.createRiceMillEntry = async (req, res, next) => {
   try {
-    const {
+    let {
       date,
       season,
       customer,
@@ -54,16 +66,37 @@ exports.createRiceMillEntry = async (req, res, next) => {
       notes,
     } = req.body;
 
-    const processed = parseFloat(riceProcessedQuintal) || 0;
-    const bran = parseFloat(branProducedQuintal) || 0;
+    const processed = parseFloat(riceProcessedQuintal);
+    if (isNaN(processed) || processed <= 0) {
+      return res.status(400).json({ success: false, message: 'Rice processed (Quintal) must be greater than 0' });
+    }
+
+    const bran = parseFloat(branProducedQuintal);
+    if (isNaN(bran) || bran < 0) {
+      return res.status(400).json({ success: false, message: 'Bran produced (Quintal) cannot be negative' });
+    }
+
     const rate = parseFloat(processingRatePerQuintal) || 0;
     const totalProcessingCharge = Math.round(processed * rate);
+
+    // Resolve season if not provided, empty string, or invalid ObjectId
+    season = await resolveOrCreateSeason(season);
+
+    // Resolve customer and customerName
+    let validCustomer = undefined;
+    if (customer && mongoose.Types.ObjectId.isValid(customer)) {
+      validCustomer = customer;
+      if (!customerName) {
+        const cust = await Customer.findById(customer);
+        if (cust) customerName = cust.name;
+      }
+    }
 
     const entry = await RiceMillEntry.create({
       date: date || new Date(),
       season,
-      customer: customer || null,
-      customerName,
+      customer: validCustomer,
+      customerName: customerName ? customerName.trim() : undefined,
       riceProcessedQuintal: processed,
       branProducedQuintal: bran,
       processingRatePerQuintal: rate,
@@ -71,11 +104,11 @@ exports.createRiceMillEntry = async (req, res, next) => {
       electricityCost: parseFloat(electricityCost) || 0,
       labourCost: parseFloat(labourCost) || 0,
       otherCosts: parseFloat(otherCosts) || 0,
-      notes,
+      notes: notes ? notes.trim() : undefined,
     });
 
     const populated = await RiceMillEntry.findById(entry._id).populate('customer season');
-    res.status(201).json({ success: true, entry: populated });
+    res.status(201).json({ success: true, message: 'Rice Mill entry logged successfully', entry: populated });
   } catch (error) {
     next(error);
   }

@@ -1,6 +1,7 @@
 const BranSale = require('../models/BranSale');
 const RiceMillEntry = require('../models/RiceMillEntry');
 const Season = require('../models/Season');
+const { resolveOrCreateSeason } = require('../utils/seasonHelper');
 const mongoose = require('mongoose');
 
 exports.getBranSales = async (req, res, next) => {
@@ -72,13 +73,7 @@ exports.createBranSale = async (req, res, next) => {
     const pending = Math.max(0, totalAmount - received);
 
     // Resolve season if not provided or empty string
-    if (!season || !mongoose.Types.ObjectId.isValid(season)) {
-      const activeSeason = await Season.findOne({ status: 'Active' }) || await Season.findOne().sort({ startDate: -1 });
-      if (!activeSeason) {
-        return res.status(400).json({ success: false, message: 'No active crop season found. Please create a season first.' });
-      }
-      season = activeSeason._id;
-    }
+    season = await resolveOrCreateSeason(season);
 
     const validCustomer = customer && mongoose.Types.ObjectId.isValid(customer) ? customer : undefined;
 

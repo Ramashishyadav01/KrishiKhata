@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { useSeason } from '../context/SeasonContext';
 import api from '../services/api';
@@ -9,6 +10,7 @@ import { Plus, Search, Filter, Trash2, Calendar, FileText, CheckCircle } from 'l
 const WorkEntries = () => {
   const { t } = useLanguage();
   const { selectedSeason } = useSeason();
+  const location = useLocation();
 
   const [entries, setEntries] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -62,6 +64,31 @@ const WorkEntries = () => {
   useEffect(() => {
     fetchInitial();
   }, [selectedSeason]);
+
+  // Pre-populate if navigated with machineId or customerId
+  useEffect(() => {
+    if (location.state?.machineId && machines.length > 0) {
+      const targetMachine = machines.find((m) => m._id === location.state.machineId);
+      if (targetMachine) {
+        setFormData((prev) => ({
+          ...prev,
+          machine: targetMachine._id,
+          billingUnit: targetMachine.billingUnit || 'Bigha',
+          rate: targetMachine.defaultRate || 0,
+        }));
+      }
+      if (location.state?.openModal) {
+        setShowModal(true);
+      }
+    }
+
+    if (location.state?.customerId) {
+      handleCustomerChange(location.state.customerId);
+      if (location.state?.openModal) {
+        setShowModal(true);
+      }
+    }
+  }, [location.state, machines]);
 
   // When customer changes, load customer's fields & default village
   const handleCustomerChange = async (customerId, farmerObj) => {

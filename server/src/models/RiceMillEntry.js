@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const RiceMillEntrySchema = new mongoose.Schema(
   {
     date: { type: Date, required: true, default: Date.now },
-    season: { type: mongoose.Schema.Types.ObjectId, ref: 'Season', required: true },
+    season: { type: mongoose.Schema.Types.ObjectId, ref: 'Season' },
     customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
     customerName: { type: String, trim: true }, // Optional walk-in customer name
     

@@ -7,7 +7,7 @@ import { Factory, Plus, Trash2, Wheat } from 'lucide-react';
 
 const RiceMill = () => {
   const { t } = useLanguage();
-  const { selectedSeason } = useSeason();
+  const { seasons, selectedSeason, fetchSeasons } = useSeason();
 
   const [entries, setEntries] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -20,8 +20,15 @@ const RiceMill = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
 
+  const getInitialSeason = () => {
+    if (selectedSeason) return selectedSeason;
+    const active = seasons.find((s) => s.status === 'Active');
+    return active ? active._id : seasons.length > 0 ? seasons[0]._id : '';
+  };
+
   const [formData, setFormData] = useState({
     date: new Date().toISOString().slice(0, 10),
+    season: '',
     customer: '',
     customerName: '',
     riceProcessedQuintal: '',
@@ -41,10 +48,15 @@ const RiceMill = () => {
         api.get('/customers'),
       ]);
       if (resMill.data.success) {
-        setEntries(resMill.data.entries);
-        setInventory(resMill.data.inventory);
+        setEntries(resMill.data.entries || []);
+        setInventory(resMill.data.inventory || {
+          totalProcessed: 0,
+          totalBranProduced: 0,
+          totalBranSold: 0,
+          remainingBran: 0,
+        });
       }
-      if (resCust.data.success) setCustomers(resCust.data.customers);
+      if (resCust.data.success) setCustomers(resCust.data.customers || []);
     } catch (error) {
       console.error('Failed to fetch rice mill logs:', error);
     } finally {
@@ -56,17 +68,58 @@ const RiceMill = () => {
     fetchData();
   }, [selectedSeason]);
 
+  const handleOpenModal = () => {
+    setFormData({
+      date: new Date().toISOString().slice(0, 10),
+      season: getInitialSeason(),
+      customer: '',
+      customerName: '',
+      riceProcessedQuintal: '',
+      branProducedQuintal: '',
+      processingRatePerQuintal: 250,
+      electricityCost: 0,
+      labourCost: 0,
+      otherCosts: 0,
+      notes: '',
+    });
+    setShowModal(true);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!formData.customer) {
+      alert('Please select a Customer / Farmer (कृपया किसान/मालिक चुनें)');
+      return;
+    }
+
+    const processed = parseFloat(formData.riceProcessedQuintal);
+    if (isNaN(processed) || processed <= 0) {
+      alert('Please enter valid Rice Processed quantity in Quintal (मात्रा 0 से अधिक होनी चाहिए)');
+      return;
+    }
+
+    const bran = parseFloat(formData.branProducedQuintal);
+    if (isNaN(bran) || bran < 0) {
+      alert('Please enter valid Bran Produced quantity in Quintal');
+      return;
+    }
+
     try {
+      const targetSeason = formData.season || selectedSeason || undefined;
       const res = await api.post('/rice-mill', {
         ...formData,
-        season: selectedSeason || null,
+        season: targetSeason,
       });
+
       if (res.data.success) {
         setShowModal(false);
+        if (fetchSeasons) {
+          fetchSeasons();
+        }
         setFormData({
           date: new Date().toISOString().slice(0, 10),
+          season: getInitialSeason(),
           customer: '',
           customerName: '',
           riceProcessedQuintal: '',
@@ -80,14 +133,24 @@ const RiceMill = () => {
         fetchData();
       }
     } catch (error) {
-      alert('Failed to log rice mill batch');
+      console.error('Failed to log rice mill batch:', error);
+      const message =
+        error.response?.data?.message ||
+        error.message ||
+        'Failed to log rice mill batch';
+      alert(`Failed to save: ${message}`);
     }
   };
 
   const handleDelete = async (id) => {
     if (window.confirm('Delete this rice mill record?')) {
-      await api.delete(`/rice-mill/${id}`);
-      fetchData();
+      try {
+        await api.delete(`/rice-mill/${id}`);
+        fetchData();
+      } catch (error) {
+        console.error('Failed to delete rice mill record:', error);
+        alert('Failed to delete record');
+      }
     }
   };
 
@@ -103,7 +166,7 @@ const RiceMill = () => {
           </p>
         </div>
         <button
-          onClick={() => setShowModal(true)}
+          onClick={handleOpenModal}
           className="bg-agri-700 hover:bg-agri-800 text-white font-hindi text-xs font-bold py-2.5 px-4 rounded-xl shadow-md transition flex items-center justify-center space-x-2"
         >
           <Plus size={18} />
@@ -146,25 +209,42 @@ const RiceMill = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-xs font-medium">
-              {entries.map((e) => (
-                <tr key={e._id} className="hover:bg-gray-50">
-                  <td className="py-3 px-4 font-mono">{new Date(e.date).toLocaleDateString('en-IN')}</td>
-                  <td className="py-3 px-4 font-bold text-gray-900">
-                    {e.customer ? `${e.customer.name} (${e.customer.village})` : e.customerName || 'Walk-in'}
-                  </td>
-                  <td className="py-3 px-4 text-right font-mono font-bold">{e.riceProcessedQuintal} Qtl</td>
-                  <td className="py-3 px-4 text-right font-mono font-bold text-amber-800">{e.branProducedQuintal} Qtl</td>
-                  <td className="py-3 px-4 text-right font-mono">₹{e.processingRatePerQuintal}</td>
-                  <td className="py-3 px-4 text-right font-mono font-bold text-agri-900">
-                    ₹{e.totalProcessingCharge?.toLocaleString('en-IN')}
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    <button onClick={() => handleDelete(e._id)} className="p-1 text-red-500 hover:bg-red-50 rounded">
-                      <Trash2 size={16} />
-                    </button>
+              {entries.length > 0 ? (
+                entries.map((e) => (
+                  <tr key={e._id} className="hover:bg-gray-50">
+                    <td className="py-3 px-4 font-mono">{new Date(e.date).toLocaleDateString('en-IN')}</td>
+                    <td className="py-3 px-4 font-bold text-gray-900">
+                      <span>
+                        {e.customer
+                          ? `${e.customer.name}${e.customer.village ? ` (${e.customer.village})` : ''}`
+                          : e.customerName || 'Walk-in'}
+                      </span>
+                      {e.season?.name && (
+                        <span className="ml-1.5 px-1.5 py-0.5 bg-gray-100 text-[10px] text-gray-500 rounded font-normal">
+                          {e.season.name}
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono font-bold">{e.riceProcessedQuintal} Qtl</td>
+                    <td className="py-3 px-4 text-right font-mono font-bold text-amber-800">{e.branProducedQuintal} Qtl</td>
+                    <td className="py-3 px-4 text-right font-mono">₹{e.processingRatePerQuintal}</td>
+                    <td className="py-3 px-4 text-right font-mono font-bold text-agri-900">
+                      ₹{e.totalProcessingCharge?.toLocaleString('en-IN')}
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <button onClick={() => handleDelete(e._id)} className="p-1 text-red-500 hover:bg-red-50 rounded">
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="7" className="text-center py-8 text-gray-400 font-hindi">
+                    No rice mill processing batches recorded yet (कोई राइस मिल रिकॉर्ड नहीं मिला).
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -172,15 +252,39 @@ const RiceMill = () => {
 
       {showModal && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-bold text-gray-900 font-hindi mb-4">+ Add Rice Mill Processing Batch</h2>
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <FarmerSelector
                 value={formData.customer}
-                onChange={(farmerId) => setFormData({ ...formData, customer: farmerId })}
+                onChange={(farmerId, farmerObj) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    customer: farmerId,
+                    customerName: farmerObj ? farmerObj.name : prev.customerName,
+                  }))
+                }
                 label="Customer / Owner (किसान/मालिक) *"
                 required
               />
+
+              {seasons && seasons.length > 0 && (
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">Crop Season (फसल सीजन) *</label>
+                  <select
+                    value={formData.season || selectedSeason || ''}
+                    onChange={(e) => setFormData({ ...formData, season: e.target.value })}
+                    className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-xl font-medium"
+                  >
+                    <option value="">Select Season (सीजन चुनें)</option>
+                    {seasons.map((s) => (
+                      <option key={s._id} value={s._id}>
+                        {s.name} {s.status === 'Active' ? '🟢 (Active)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -209,25 +313,14 @@ const RiceMill = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">Rate / Qtl (₹)</label>
-                  <input
-                    type="number"
-                    value={formData.processingRatePerQuintal}
-                    onChange={(e) => setFormData({ ...formData, processingRatePerQuintal: e.target.value })}
-                    className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-xl font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">Electricity Cost (₹)</label>
-                  <input
-                    type="number"
-                    value={formData.electricityCost}
-                    onChange={(e) => setFormData({ ...formData, electricityCost: e.target.value })}
-                    className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-xl font-medium"
-                  />
-                </div>
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">Rate / Qtl (₹ पिसाई दर)</label>
+                <input
+                  type="number"
+                  value={formData.processingRatePerQuintal}
+                  onChange={(e) => setFormData({ ...formData, processingRatePerQuintal: e.target.value })}
+                  className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-xl font-bold font-mono text-agri-900"
+                />
               </div>
 
               <div className="pt-3 flex justify-end space-x-3">

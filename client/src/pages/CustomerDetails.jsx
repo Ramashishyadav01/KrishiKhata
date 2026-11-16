@@ -22,6 +22,7 @@ import {
   AlertTriangle,
   X,
   CheckCircle,
+  Tractor,
 } from 'lucide-react';
 
 const CustomerDetails = () => {
@@ -317,6 +318,18 @@ const CustomerDetails = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 mt-4">
+            <button
+              onClick={() =>
+                navigate('/work-entries', {
+                  state: { customerId: customer._id, openModal: true },
+                })
+              }
+              className="bg-white hover:bg-agri-50 text-agri-900 font-bold text-xs py-2.5 px-5 rounded-xl shadow-md transition flex items-center space-x-2"
+            >
+              <Tractor size={16} className="text-agri-700" />
+              <span>+ मशीन का काम जोड़ें (Add Machine Work)</span>
+            </button>
+
             <button
               onClick={() => setShowPaymentModal(true)}
               className="bg-amber-500 hover:bg-amber-600 text-agri-950 font-bold text-xs py-2.5 px-5 rounded-xl shadow-md transition flex items-center space-x-2"

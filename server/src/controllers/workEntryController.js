@@ -1,5 +1,8 @@
 const WorkEntry = require('../models/WorkEntry');
 const Payment = require('../models/Payment');
+const Season = require('../models/Season');
+const { resolveOrCreateSeason } = require('../utils/seasonHelper');
+const mongoose = require('mongoose');
 const { calculateAmount, calculateTotalBissa } = require('../utils/bighaMath');
 
 exports.getWorkEntries = async (req, res, next) => {
@@ -44,7 +47,7 @@ exports.getWorkEntryById = async (req, res, next) => {
 
 exports.createWorkEntry = async (req, res, next) => {
   try {
-    const {
+    let {
       customer,
       field,
       village,
@@ -63,6 +66,8 @@ exports.createWorkEntry = async (req, res, next) => {
       description,
       notes,
     } = req.body;
+
+    season = await resolveOrCreateSeason(season);
 
     const bg = parseFloat(bigha) || 0;
     const bs = parseFloat(bissa) || 0;

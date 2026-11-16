@@ -1,11 +1,18 @@
 const express = require('express');
 const router = express.Router();
-const { getMachines, createMachine, updateMachine, deleteMachine } = require('../controllers/machineController');
-const { protect, adminOnly } = require('../middleware/auth');
+const {
+  getMachines,
+  createMachine,
+  updateMachine,
+  deleteMachine,
+  seedDefaultMachines,
+} = require('../controllers/machineController');
+const { protect } = require('../middleware/auth');
 
 router.get('/', protect, getMachines);
-router.post('/', protect, adminOnly, createMachine);
+router.post('/', protect, createMachine);
+router.post('/seed', protect, seedDefaultMachines);
 router.put('/:id', protect, updateMachine);
-router.delete('/:id', protect, adminOnly, deleteMachine);
+router.delete('/:id', protect, deleteMachine);
 
 module.exports = router;

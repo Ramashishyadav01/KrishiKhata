@@ -1,4 +1,7 @@
 const Expense = require('../models/Expense');
+const Season = require('../models/Season');
+const { resolveOrCreateSeason } = require('../utils/seasonHelper');
+const mongoose = require('mongoose');
 
 exports.getExpenses = async (req, res, next) => {
   try {
@@ -35,7 +38,10 @@ exports.getExpenses = async (req, res, next) => {
 
 exports.createExpense = async (req, res, next) => {
   try {
-    const { category, date, season, amount, description, paymentMethod, vendor, notes } = req.body;
+    let { category, date, season, amount, description, paymentMethod, vendor, notes } = req.body;
+
+    season = await resolveOrCreateSeason(season);
+
     const expense = await Expense.create({
       category,
       date: date || new Date(),
